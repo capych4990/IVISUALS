@@ -1,21 +1,25 @@
 name: build
-on: [push, workflow_dispatch]
+on:
+  push:
+  workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: unzip -q ivisuals-fabric-1.21.11.zip
-      - uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: 21
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: 9.2.0
-      - run: gradle build
-        working-directory: ivisuals
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ivisuals-jar
-          path: ivisuals/build/libs/*.jar
+          fetch-depth: 0   # нужна история, чтобы найти самый свежий zip
+
+      # Берём zip, который был закоммичен последним, и распаковываем в _src.
+      # Если zip нет - считаем, что исходники лежат в корне репозитория.
+      - name: Find and unpack newest source zip
+        id: src
+        run: |
+          set -e
+          newest=""
+          best=0
+          while IFS= read -r -d '' f; do
+            t=$(git log -1 --format=%ct -- "$f")
+            if [ "${t:-0}" -ge "$best" ]; then best="${t:-0}"; newest="$f"; fi
+          done
